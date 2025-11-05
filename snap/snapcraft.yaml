@@ -1,0 +1,72 @@
+name: msbuild-structured-log-viewer
+base: core24
+adopt-info: log-viewer
+summary: A logger for MSBuild.
+description: |
+  A logger for MSBuild that records a structured representation of executed
+  targets, tasks, property and item values. It can greatly simplify build
+  investigations and provides a portable log interchange format (*.binlog)
+  and a rich interactive log viewer app.
+
+grade: devel
+confinement: strict
+
+package-repositories:
+  - type: apt
+    ppa: dotnet/previews
+  - type: apt
+    ppa: dotnet/backports
+
+plugs:
+  dot-nuget-packages:
+    interface: personal-files
+    write:
+      - $HOME/.nuget/packages
+
+parts:
+  log-viewer:
+    plugin: dotnet
+    source: https://github.com/KirillOsenkov/MSBuildStructuredLog.git
+    source-type: git
+    build-packages:
+      - jq
+    stage-packages:
+      - aspnetcore-runtime-8.0
+      - aspnetcore-runtime-9.0
+      - dotnet-sdk-10.0
+      - fontconfig
+      - libfontconfig1
+      - libice6
+      - libsm6
+      - libx11-6
+      - fonts-liberation
+      - fonts-dejavu-core
+    dotnet-configuration: Release
+    dotnet-project: ${CRAFT_PART_SRC}/src/StructuredLogViewer.Avalonia/StructuredLogViewer.Avalonia.csproj
+    dotnet-properties:
+      AvaloniaVersion: '11.3.8'
+    dotnet-version: '8.0'
+    override-build: |
+      latest_version=$(curl -s https://api.github.com/repos/KirillOsenkov/MSBuildStructuredLog/releases/latest \
+        | jq -r '.tag_name' | tr -d 'v')
+      craftctl set version="$latest_version"
+      git checkout "v${latest_version}"
+      craftctl default
+
+apps:
+  msbuild-structured-log-viewer:
+    command: StructuredLogViewer.Avalonia
+    environment:
+      DOTNET_ROOT: $SNAP/usr/lib/dotnet
+      FONTCONFIG_FILE: $SNAP/etc/fonts/fonts.conf
+      FONTCONFIG_PATH: $SNAP/etc/fonts
+      MSBUILDSTRUCTUREDLOG_DATA_DIR: $SNAP_USER_DATA
+    plugs:
+      - desktop
+      - desktop-legacy
+      - dot-nuget-packages
+      - home
+      - opengl
+      - unity7
+      - wayland
+      - x11
