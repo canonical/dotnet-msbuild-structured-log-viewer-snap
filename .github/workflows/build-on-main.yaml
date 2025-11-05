@@ -1,0 +1,68 @@
+name: Build and Publish on main
+
+on:
+  push:
+    branches: main
+    paths:
+      - .github/workflows/build-on-main.yaml
+      - snap/**
+  pull_request:
+    branches: main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build MSBuild Structured Log Viewer snap
+    strategy:
+      matrix:
+        os:
+          - [self-hosted, large, jammy, X64]
+          - [self-hosted, large, jammy, ARM64]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: checkout source code
+        uses: actions/checkout@v4
+      - name: read host architecture
+        id: get-arch
+        run: echo "DPKG_ARCH=$(dpkg --print-architecture)" >> "$GITHUB_OUTPUT"
+      - name: run snapcraft pack
+        id: snapcraft
+        uses: snapcore/action-build@v1
+        with:
+          snapcraft-args: --verbose
+      - name: upload snap to workflow artifacts
+        id: upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: msbuild-structured-log-viewer-${{ steps.get-arch.outputs.DPKG_ARCH }}
+          path: ${{ steps.snapcraft.outputs.snap }}
+
+  publish:
+    name: Publish MSBuild Structured Log Viewer snap
+    if: ${{ contains(fromJSON('["push", "workflow_dispatch"]'), github.event_name) && github.ref_name == 'main' }}
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        artifact-name:
+          - msbuild-structured-log-viewer-amd64
+          - msbuild-structured-log-viewer-arm64
+    steps:
+      - uses: actions/download-artifact@v4
+        id: download-artifact
+        with:
+          name: ${{ matrix.artifact-name }}
+      - name: Gather filename
+        id: gather-filename
+        env:
+          ARTIFACT_PATH: ${{ steps.download-artifact.outputs.download-path }}
+        run: |
+          ls -la $ARTIFACT_PATH
+          SNAP_FILE_NAME=$(ls ${ARTIFACT_PATH}/msbuild-structured-log-viewer*.snap)
+          echo "SNAP_PATH=${SNAP_FILE_NAME}" >> "$GITHUB_OUTPUT"
+      - uses: snapcore/action-publish@v1
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAP_STORE_LOGIN }}
+        with:
+          snap: ${{ steps.gather-filename.outputs.SNAP_PATH }}
+          release: edge
