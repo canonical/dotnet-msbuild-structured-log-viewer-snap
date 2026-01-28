@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=MSBuild Structured Log Viewer
+Type=Application
+Exec=msbuild-structured-log-viewer
+Icon=${SNAP}/meta/gui/msbuild-structured-log-viewer.png
