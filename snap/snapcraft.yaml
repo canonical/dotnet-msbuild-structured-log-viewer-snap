@@ -17,11 +17,11 @@ package-repositories:
   - type: apt
     ppa: dotnet/backports
 
-plugs:
-  dot-nuget-packages:
-    interface: personal-files
-    write:
-      - $HOME/.nuget/packages
+# plugs:
+#   dot-nuget-packages:
+#     interface: personal-files
+#     write:
+#       - $HOME/.nuget/packages
 
 parts:
   log-viewer:
@@ -67,7 +67,7 @@ apps:
     plugs:
       - desktop
       - desktop-legacy
-      - dot-nuget-packages
+      # - dot-nuget-packages
       - home
       - network
       - opengl
