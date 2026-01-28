@@ -8,7 +8,7 @@ description: |
   investigations and provides a portable log interchange format (*.binlog)
   and a rich interactive log viewer app.
 
-grade: devel
+grade: stable
 confinement: strict
 
 package-repositories:
@@ -56,16 +56,20 @@ parts:
 apps:
   msbuild-structured-log-viewer:
     command: StructuredLogViewer.Avalonia
+    desktop: meta/gui/msbuild-structured-log-viewer.desktop
     environment:
       DOTNET_ROOT: $SNAP/usr/lib/dotnet
       FONTCONFIG_FILE: $SNAP/etc/fonts/fonts.conf
       FONTCONFIG_PATH: $SNAP/etc/fonts
       MSBUILDSTRUCTUREDLOG_DATA_DIR: $SNAP_USER_DATA
+      NUGET_PACKAGES: $SNAP_USER_DATA/.nuget/packages
+      NUGET_HTTP_CACHE_PATH: $SNAP_USER_DATA/.nuget/v3-cache
     plugs:
       - desktop
       - desktop-legacy
       - dot-nuget-packages
       - home
+      - network
       - opengl
       - unity7
       - wayland
