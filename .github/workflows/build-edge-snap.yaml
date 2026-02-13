@@ -1,0 +1,113 @@
+name: Build edge snap
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force build even if edge channel has the latest commit'
+        required: false
+        type: boolean
+        default: false
+      publish:
+        description: 'Publish the built snap to the Snap Store (edge channel)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      needs_build: ${{ steps.version_check.outputs.needs_build }}
+      commit: ${{ steps.fetch_version.outputs.commit }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if Snap Store edge has latest commit
+        id: version_check
+        run: |
+          if [ "${{ inputs.force_build }}" = "true" ]; then
+            echo "needs_build=true" >> $GITHUB_OUTPUT
+          else
+            python3 eng/snap_store_has_latest.py --channel edge
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "needs_build=false" >> $GITHUB_OUTPUT
+            elif [ $EXIT_CODE -eq 1 ]; then
+              echo "needs_build=true" >> $GITHUB_OUTPUT
+            else
+              echo "Error checking version - exit code: $EXIT_CODE" >&2
+              exit $EXIT_CODE
+            fi
+          fi
+
+      - name: Fetch latest commit
+        id: fetch_version
+        if: steps.version_check.outputs.needs_build == 'true'
+        run: |
+          LATEST_COMMIT=$(curl -s https://github.com/KirillOsenkov/MSBuildStructuredLog/commits/main | jq -r '.sha[:7]')
+          echo "commit=$LATEST_COMMIT" >> $GITHUB_OUTPUT
+          echo "Building from upstream main branch, commit: $LATEST_COMMIT"
+
+      - name: Skip build
+        if: steps.version_check.outputs.needs_build == 'false'
+        run: echo "Snap Store edge already has the latest commit. Skipping build."
+
+  build:
+    runs-on: ${{ matrix.runner }}
+    needs: check
+    if: needs.check.outputs.needs_build == 'true'
+    strategy:
+      matrix:
+        include:
+          - runner: [self-hosted, large, jammy, X64]
+            arch: amd64
+          - runner: [self-hosted, large, jammy, ARM64]
+            arch: arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build snap
+        id: build-snap
+        uses: canonical/action-build@v1
+
+      - name: Upload snap artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: msbuild-structured-log-viewer-edge-snap-${{ matrix.arch }}
+          path: ${{ steps.build-snap.outputs.snap }}
+          retention-days: 30
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [check, build]
+    if: inputs.publish == true && needs.check.outputs.needs_build == 'true'
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+
+    steps:
+      - name: Download snap artifact
+        id: download-artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: msbuild-structured-log-viewer-edge-snap-${{ matrix.arch }}
+
+      - name: Gather filename
+        id: gather-filename
+        shell: bash
+        run: |
+          SNAP=$(ls ${{ steps.download-artifact.outputs.download-path }}/*.snap)
+          echo "snap_path=${SNAP}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish snap to Snap Store
+        uses: canonical/action-publish@v1
+        with:
+          snap: ${{ steps.gather-filename.outputs.snap_path }}
+          release: edge
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAP_STORE_LOGIN }}
