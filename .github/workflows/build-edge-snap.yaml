@@ -71,6 +71,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Prepare snapcraft.yaml for edge build
+        run: |
+          # Replace the entire override-build section
+          python3 << 'EOF'
+          import re
+          with open('snap/snapcraft.yaml', 'r') as f:
+              content = f.read()
+
+          new_override = '''    override-build: |
+                craftctl set version="${{ needs.check.outputs.commit }}"
+                craftctl default'''
+
+          content = re.sub(
+              r'    override-build: \|.*?craftctl default',
+              new_override,
+              content,
+              flags=re.DOTALL
+          )
+
+          with open('snap/snapcraft.yaml', 'w') as f:
+              f.write(content)
+          EOF
+
       - name: Build snap
         id: build-snap
         uses: canonical/action-build@v1
