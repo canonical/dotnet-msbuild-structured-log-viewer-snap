@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check if Snap Store stable has latest version
         id: version_check
@@ -64,14 +64,14 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build snap
         id: build-snap
         uses: canonical/action-build@v1
 
       - name: Upload snap artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: msbuild-structured-log-viewer-stable-snap-${{ matrix.arch }}
           path: ${{ steps.build-snap.outputs.snap }}
@@ -88,7 +88,7 @@ jobs:
     steps:
       - name: Download snap artifact
         id: download-artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: msbuild-structured-log-viewer-stable-snap-${{ matrix.arch }}
 
