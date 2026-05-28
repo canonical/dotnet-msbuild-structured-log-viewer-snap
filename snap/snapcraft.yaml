@@ -48,7 +48,7 @@ parts:
       latest_version=$(curl -s https://api.github.com/repos/KirillOsenkov/MSBuildStructuredLog/releases/latest \
         | jq -r '.tag_name' | tr -d 'v')
       craftctl set version="$latest_version"
-      git checkout "v${latest_version}"
+      git -C ${CRAFT_PART_SRC} checkout "v${latest_version}"
       craftctl default
 
 apps:
